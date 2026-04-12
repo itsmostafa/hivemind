@@ -107,7 +107,10 @@ def test_merge_cli_overrides_sets_advisor_api_base():
 
 
 def test_merge_cli_overrides_api_base_none_preserves_existing():
-    config = load_config()
+    config = CoagentConfig(
+        executor=ModelConfig(model="ollama/llama3"),
+        advisor=ModelConfig(model="ollama/llama3"),
+    )
     # No api_base override → existing api_base (None) is preserved
     result = merge_cli_overrides(config, executor="openai/gpt-oss-20b")
     assert result.executor.api_base is None
