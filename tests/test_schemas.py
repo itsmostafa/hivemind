@@ -1,7 +1,9 @@
 """Tests for Pydantic model validation in coagent.schemas."""
+
 import pytest
 from pydantic import ValidationError
 
+from coagent.config import load_config, merge_cli_overrides
 from coagent.schemas import (
     AdvisorResponse,
     CoagentConfig,
@@ -80,3 +82,32 @@ def test_executor_result_roundtrip():
     assert result.state.status == "completed"
     assert result.usage_summary["total"] == {}
     assert result.advisor_history == []
+
+
+def test_merge_cli_overrides_sets_executor_api_base():
+    config = load_config()
+    result = merge_cli_overrides(
+        config,
+        executor="openai/gpt-oss-20b",
+        executor_api_base="http://localhost:1234/v1",
+    )
+    assert result.executor.model == "openai/gpt-oss-20b"
+    assert result.executor.api_base == "http://localhost:1234/v1"
+
+
+def test_merge_cli_overrides_sets_advisor_api_base():
+    config = load_config()
+    result = merge_cli_overrides(
+        config,
+        advisor="openai/gpt-5.4-mini",
+        advisor_api_base="http://localhost:1234/v1",
+    )
+    assert result.advisor.model == "openai/gpt-5.4-mini"
+    assert result.advisor.api_base == "http://localhost:1234/v1"
+
+
+def test_merge_cli_overrides_api_base_none_preserves_existing():
+    config = load_config()
+    # No api_base override → existing api_base (None) is preserved
+    result = merge_cli_overrides(config, executor="openai/gpt-oss-20b")
+    assert result.executor.api_base is None
