@@ -29,13 +29,23 @@ def _expand_env_vars_in_dict(data: Any) -> Any:
         return data
 
 
+_CONFIG_CANDIDATES = ("config.yaml", "config.yml")
+
+
 def load_config(path: str | None = None) -> CoagentConfig:
     """Load CoagentConfig from a YAML file.
 
-    If path is None, returns a default config (no file required).
+    If path is None, looks for config.yaml then config.yml in the current
+    directory. If neither exists, returns a default config.
     Expands ${ENV_VAR} references in string values.
     Validates with Pydantic.
     """
+    if path is None:
+        for candidate in _CONFIG_CANDIDATES:
+            if os.path.exists(candidate):
+                path = candidate
+                break
+
     if path is None:
         return CoagentConfig(
             executor=ModelConfig(model="ollama/llama3"),

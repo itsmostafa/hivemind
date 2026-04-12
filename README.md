@@ -28,8 +28,8 @@ coagent run \
   --advisor openai/gpt-4o \
   "Write a CSV parser in Python"
 
-# With config file
-coagent run --config config.yaml "Write a CSV parser in Python"
+# With a config file (auto-discovered: config.yaml or config.yml in current directory)
+coagent run "Write a CSV parser in Python"
 
 # View a trace
 coagent trace traces/run.jsonl
@@ -52,6 +52,8 @@ print(result.usage_summary)
 ```
 
 ## Configuration
+
+Coagent automatically loads `config.yaml` or `config.yml` from the current directory if either exists. No flag required — just place the file and run.
 
 Copy `config.example.yaml` and edit for your setup:
 
