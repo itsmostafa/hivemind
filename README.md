@@ -1,8 +1,8 @@
 # Coagent
 
-Implementing the "advisor strategy" LLM pattern: one executor model handles tasks end-to-end; an advisor model is consulted only when the executor needs help. This greatly improves intelligence while keeping costs down — the expensive model is called sparingly, not on every turn.
+Coagent implements the **advisor strategy** pattern: a cheap executor model handles tasks turn-by-turn, while a powerful advisor model is consulted only when the executor signals it needs help. The result is frontier-level performance at a fraction of the cost.
 
-A common use case is pairing a local model as the executor with a state-of-the-art model (e.g. `claude-opus-4-6`, `gpt-5.4`) as the advisor, giving your local model a significant performance boost without paying for a frontier model on every request.
+The typical setup pairs a local model as the executor with a state-of-the-art model (`claude-opus-4-6`, `gpt-4o`) as the advisor. The advisor is called sparingly, not on every turn.
 
 Reference: https://claude.com/blog/the-advisor-strategy
 
