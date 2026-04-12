@@ -197,6 +197,9 @@ cython_debug/
 # Configuration
 config.yaml
 
+# Traces
+traces/
+
 # AI
 .claude/
 ai_docs/
