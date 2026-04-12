@@ -1,8 +1,7 @@
 """Tests for DecisionPolicy in coagent.policy."""
-import pytest
 
 from coagent.policy import DecisionPolicy
-from coagent.schemas import ExecutorState, PolicyConfig
+from coagent.schemas import ExecutorState
 
 
 def make_state(advisor_calls: int = 0) -> ExecutorState:

@@ -1,7 +1,6 @@
 """Tests for ExecutorLoop in coagent.executor."""
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from coagent.executor import ExecutorLoop
 from coagent.log import NullTraceLogger

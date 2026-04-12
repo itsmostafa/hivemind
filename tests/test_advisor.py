@@ -2,10 +2,9 @@
 import json
 from unittest.mock import MagicMock
 
-import pytest
 
 from coagent.advisor import Advisor, build_advisor_context
-from coagent.schemas import AdvisorResponse, ExecutorState, ModelConfig, ModelResponse
+from coagent.schemas import AdvisorResponse, ExecutorState, ModelResponse
 
 
 def make_mock_model_response(content: str) -> ModelResponse:
