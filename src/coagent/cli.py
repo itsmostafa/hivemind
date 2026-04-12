@@ -1,5 +1,8 @@
 import json
+import os
 import sys
+from datetime import datetime, timezone
+
 import click
 from coagent.advisor import Advisor
 from coagent.config import load_config, merge_cli_overrides
@@ -10,6 +13,15 @@ from coagent.policy import DecisionPolicy
 from coagent.tracking import CostTracker
 
 
+def _timestamped_trace_path(path: str) -> str:
+    """Insert a UTC datetime stamp into a trace file path."""
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    if path.endswith("/") or path.endswith(os.sep) or os.path.isdir(path):
+        return os.path.join(path.rstrip("/\\"), f"{ts}.jsonl")
+    root, ext = os.path.splitext(path)
+    return f"{root}_{ts}{ext or '.jsonl'}"
+
+
 @click.group()
 def cli() -> None:
     """Coagent: advisor strategy LLM framework."""
@@ -17,7 +29,6 @@ def cli() -> None:
 
 @cli.command()
 @click.argument("task")
-@click.option("--config", "config_path", default=None, help="Path to config YAML file.")
 @click.option(
     "--executor", default=None, help="Executor model string (e.g. ollama/llama3)."
 )
@@ -35,7 +46,6 @@ def cli() -> None:
 @click.option("--trace", default=None, help="Path to write JSONL trace file.")
 def run(
     task: str,
-    config_path: str | None,
     executor: str | None,
     executor_api_base: str | None,
     advisor_model: str | None,
@@ -43,8 +53,8 @@ def run(
     trace: str | None,
 ) -> None:
     """Run coagent on a TASK."""
-    # Load and merge config
-    config = load_config(config_path)
+    # Load and merge config (auto-discovers config.yaml / config.yml)
+    config = load_config()
     config = merge_cli_overrides(
         config,
         executor=executor,
@@ -62,7 +72,7 @@ def run(
 
     # Set up trace logger
     if config.logging.trace_file:
-        trace_logger = TraceLogger(config.logging.trace_file)
+        trace_logger = TraceLogger(_timestamped_trace_path(config.logging.trace_file))
     else:
         trace_logger = NullTraceLogger()
 
