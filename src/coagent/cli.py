@@ -18,14 +18,40 @@ def cli() -> None:
 @cli.command()
 @click.argument("task")
 @click.option("--config", "config_path", default=None, help="Path to config YAML file.")
-@click.option("--executor", default=None, help="Executor model string (e.g. ollama/llama3).")
+@click.option(
+    "--executor", default=None, help="Executor model string (e.g. ollama/llama3)."
+)
+@click.option(
+    "--executor-api-base",
+    default=None,
+    help="API base URL for executor (e.g. http://localhost:1234/v1).",
+)
 @click.option("--advisor", "advisor_model", default=None, help="Advisor model string.")
+@click.option(
+    "--advisor-api-base",
+    default=None,
+    help="API base URL for advisor (e.g. http://localhost:1234/v1).",
+)
 @click.option("--trace", default=None, help="Path to write JSONL trace file.")
-def run(task: str, config_path: str | None, executor: str | None, advisor_model: str | None, trace: str | None) -> None:
+def run(
+    task: str,
+    config_path: str | None,
+    executor: str | None,
+    executor_api_base: str | None,
+    advisor_model: str | None,
+    advisor_api_base: str | None,
+    trace: str | None,
+) -> None:
     """Run coagent on a TASK."""
     # Load and merge config
     config = load_config(config_path)
-    config = merge_cli_overrides(config, executor=executor, advisor=advisor_model)
+    config = merge_cli_overrides(
+        config,
+        executor=executor,
+        advisor=advisor_model,
+        executor_api_base=executor_api_base,
+        advisor_api_base=advisor_api_base,
+    )
 
     # Override trace file if provided via CLI
     if trace:
@@ -60,13 +86,13 @@ def run(task: str, config_path: str | None, executor: str | None, advisor_model:
         result = loop.run(task)
 
     # Output result
-    click.echo("\n" + "="*60)
+    click.echo("\n" + "=" * 60)
     click.echo("RESULT:")
-    click.echo("="*60)
+    click.echo("=" * 60)
     click.echo(result.final_answer)
-    click.echo("\n" + "="*60)
+    click.echo("\n" + "=" * 60)
     click.echo("USAGE:")
-    click.echo("="*60)
+    click.echo("=" * 60)
     _print_usage(result.usage_summary)
 
     if result.advisor_history:
@@ -77,9 +103,11 @@ def run(task: str, config_path: str | None, executor: str | None, advisor_model:
 
 def _print_usage(usage: dict) -> None:
     for role, data in usage.items():
-        click.echo(f"  {role:10s}: {data['calls']} calls, "
-                   f"{data['prompt_tokens']+data['completion_tokens']} tokens, "
-                   f"${data['cost_usd']:.6f}")
+        click.echo(
+            f"  {role:10s}: {data['calls']} calls, "
+            f"{data['prompt_tokens'] + data['completion_tokens']} tokens, "
+            f"${data['cost_usd']:.6f}"
+        )
 
 
 @cli.command()
@@ -98,25 +126,35 @@ def trace(trace_file: str) -> None:
                     ts = event.get("ts", "")[:19]  # trim to seconds
 
                     if event_type == "executor_turn":
-                        click.echo(f"[{ts}] TURN {event.get('turn')} — executor ({event.get('tokens', {}).get('completion', '?')} tokens)")
+                        click.echo(
+                            f"[{ts}] TURN {event.get('turn')} — executor ({event.get('tokens', {}).get('completion', '?')} tokens)"
+                        )
                         content = event.get("content", "")
-                        click.echo(f"  {content[:200]}{'...' if len(content) > 200 else ''}")
+                        click.echo(
+                            f"  {content[:200]}{'...' if len(content) > 200 else ''}"
+                        )
                     elif event_type == "policy_check":
                         consult = event.get("should_consult")
                         reason = event.get("reason", "")
                         mark = "→ CONSULT" if consult else "  skip"
-                        click.echo(f"[{ts}] POLICY turn {event.get('turn')} {mark} ({reason})")
+                        click.echo(
+                            f"[{ts}] POLICY turn {event.get('turn')} {mark} ({reason})"
+                        )
                     elif event_type == "advisor_call":
-                        click.echo(f"[{ts}] ADVISOR turn {event.get('turn')} — {event.get('advisor_status')} ({event.get('reason')})")
+                        click.echo(
+                            f"[{ts}] ADVISOR turn {event.get('turn')} — {event.get('advisor_status')} ({event.get('reason')})"
+                        )
                         click.echo(f"  {event.get('advisor_diagnosis', '')[:200]}")
                     elif event_type == "run_complete":
                         usage = event.get("usage", {})
                         total = usage.get("total", {})
-                        click.echo(f"[{ts}] COMPLETE — {event.get('turns')} turns, {event.get('advisor_calls')} advisor calls, ${total.get('cost_usd', 0):.6f}")
+                        click.echo(
+                            f"[{ts}] COMPLETE — {event.get('turns')} turns, {event.get('advisor_calls')} advisor calls, ${total.get('cost_usd', 0):.6f}"
+                        )
                     else:
                         click.echo(f"[{ts}] {event_type}: {json.dumps(event)[:200]}")
                 except json.JSONDecodeError:
-                    click.echo(f"Line {i+1}: (invalid JSON) {line[:100]}")
+                    click.echo(f"Line {i + 1}: (invalid JSON) {line[:100]}")
     except FileNotFoundError:
         click.echo(f"Error: trace file not found: {trace_file}", err=True)
         sys.exit(1)

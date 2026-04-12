@@ -1,6 +1,10 @@
 # Coagent
 
-An MVP Python framework for the "advisor strategy" LLM pattern: one executor model handles tasks end-to-end; an advisor model is consulted only when the executor needs help.
+Implementing the "advisor strategy" LLM pattern: one executor model handles tasks end-to-end; an advisor model is consulted only when the executor needs help. This greatly improves intelligence while keeping costs down — the expensive model is called sparingly, not on every turn.
+
+A common use case is pairing a local model as the executor with a state-of-the-art model (e.g. `claude-opus-4-6`, `gpt-5.4`) as the advisor, giving your local model a significant performance boost without paying for a frontier model on every request.
+
+Reference: https://claude.com/blog/the-advisor-strategy
 
 ## Quick Start
 
@@ -17,6 +21,12 @@ uv add coagent
 ```bash
 # With Ollama (local)
 coagent run --executor ollama/llama3 --advisor ollama/llama3 "Explain REST vs GraphQL tradeoffs"
+
+# With an OpenAI-compatible endpoint (e.g. LM Studio)
+coagent run \
+  --executor openai/local-model --executor-api-base http://localhost:1234/v1 \
+  --advisor openai/gpt-4o \
+  "Write a CSV parser in Python"
 
 # With config file
 coagent run --config config.yaml "Write a CSV parser in Python"
@@ -105,7 +115,7 @@ Any model supported by [LiteLLM](https://docs.litellm.ai/docs/providers):
 - Local: `ollama/llama3`, `ollama/mistral`
 - OpenAI: `openai/gpt-4o`, `openai/gpt-4o-mini`
 - Anthropic: `anthropic/claude-sonnet-4-6`
-- OpenAI-compatible: set `api_base` to your endpoint
+- OpenAI-compatible: set `api_base` in config, or pass `--executor-api-base` / `--advisor-api-base` via CLI
 
 ## Development
 

@@ -9,10 +9,12 @@ from coagent.schemas import CoagentConfig, ModelConfig
 
 def _expand_env_vars(value: str) -> str:
     """Expand ${ENV_VAR} references in a string value."""
+
     def replace(match: re.Match[str]) -> str:
         var_name = match.group(1)
         return os.environ.get(var_name, match.group(0))
-    return re.sub(r'\$\{([^}]+)\}', replace, value)
+
+    return re.sub(r"\$\{([^}]+)\}", replace, value)
 
 
 def _expand_env_vars_in_dict(data: Any) -> Any:
@@ -54,10 +56,13 @@ def merge_cli_overrides(
     config: CoagentConfig,
     executor: str | None = None,
     advisor: str | None = None,
+    executor_api_base: str | None = None,
+    advisor_api_base: str | None = None,
 ) -> CoagentConfig:
     """Return a new CoagentConfig with CLI overrides applied.
 
     executor and advisor are model strings (e.g. "ollama/llama3").
+    executor_api_base and advisor_api_base set the API endpoint for each model.
     None means "no override, keep config value".
     """
     data = config.model_dump()
@@ -65,4 +70,8 @@ def merge_cli_overrides(
         data["executor"]["model"] = executor
     if advisor is not None:
         data["advisor"]["model"] = advisor
+    if executor_api_base is not None:
+        data["executor"]["api_base"] = executor_api_base
+    if advisor_api_base is not None:
+        data["advisor"]["api_base"] = advisor_api_base
     return CoagentConfig.model_validate(data)
