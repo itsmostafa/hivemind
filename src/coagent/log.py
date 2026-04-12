@@ -38,14 +38,14 @@ class TraceLogger:
     def __enter__(self) -> "TraceLogger":
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(self, *_args: Any) -> None:
         self.close()
 
 
 class NullTraceLogger:
     """No-op trace logger used when no trace file is configured."""
 
-    def log(self, event: str, **data: Any) -> None:
+    def log(self, _event: str, **_data: Any) -> None:
         pass
 
     def close(self) -> None:
@@ -54,5 +54,5 @@ class NullTraceLogger:
     def __enter__(self) -> "NullTraceLogger":
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(self, *_args: Any) -> None:
         pass
