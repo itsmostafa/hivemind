@@ -18,7 +18,7 @@ uv sync
 
 ```bash
 # With Ollama (local)
-coagent run --executor ollama/llama3 --advisor ollama/llama3 "Explain REST vs GraphQL tradeoffs"
+coagent run --executor ollama/llama3.2 --advisor openai/gpt-5.4 "Explain REST vs GraphQL tradeoffs"
 
 # With an OpenAI-compatible endpoint (e.g. LM Studio)
 coagent run \
