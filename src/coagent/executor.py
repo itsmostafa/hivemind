@@ -133,7 +133,11 @@ class ExecutorLoop:
         else:
             # Loop exhausted without completion
             state.status = "failed"
-            final_answer = state.messages[-1]["content"] if state.messages else ""
+            final_answer = next(
+                (m["content"] for m in reversed(state.messages)
+                 if m["role"] == "assistant" and m["content"].strip()),
+                "",
+            )
             logger.warning(
                 "Executor reached max turns (%d) without completing",
                 self.config.max_turns,
