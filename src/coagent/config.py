@@ -68,11 +68,13 @@ def merge_cli_overrides(
     advisor: str | None = None,
     executor_api_base: str | None = None,
     advisor_api_base: str | None = None,
+    force_consult: bool = False,
 ) -> CoagentConfig:
     """Return a new CoagentConfig with CLI overrides applied.
 
     executor and advisor are model strings (e.g. "ollama/llama3").
     executor_api_base and advisor_api_base set the API endpoint for each model.
+    force_consult forces advisor consultation on the first policy check.
     None means "no override, keep config value".
     """
     data = config.model_dump()
@@ -84,4 +86,6 @@ def merge_cli_overrides(
         data["executor"]["api_base"] = executor_api_base
     if advisor_api_base is not None:
         data["advisor"]["api_base"] = advisor_api_base
+    if force_consult:
+        data["policy"]["force_consult"] = True
     return CoagentConfig.model_validate(data)

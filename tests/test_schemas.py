@@ -125,3 +125,15 @@ def test_policy_config_force_consult_defaults_false():
 def test_policy_config_force_consult_can_be_set():
     config = PolicyConfig(force_consult=True)
     assert config.force_consult is True
+
+
+def test_merge_cli_overrides_force_consult_sets_policy_flag():
+    config = load_config()
+    result = merge_cli_overrides(config, force_consult=True)
+    assert result.policy.force_consult is True
+
+
+def test_merge_cli_overrides_force_consult_default_leaves_flag_false():
+    config = load_config()
+    result = merge_cli_overrides(config)
+    assert result.policy.force_consult is False
