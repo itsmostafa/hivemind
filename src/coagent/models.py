@@ -72,6 +72,7 @@ class ModelClient:
         total_completion_tokens = 0
         total_cost = 0.0
         content = ""
+        tool_call_events: list[dict[str, Any]] = []
 
         for _ in range(MAX_TOOL_ITERATIONS):
             response = litellm.completion(**completion_kwargs)
@@ -136,6 +137,9 @@ class ModelClient:
                                 "content": result,
                             }
                         )
+                        tool_call_events.append(
+                            {"tool": "tavily_search", "query": args["query"]}
+                        )
                 completion_kwargs["messages"] = (
                     completion_kwargs["messages"] + tool_messages
                 )
@@ -151,6 +155,7 @@ class ModelClient:
             completion_tokens=total_completion_tokens,
             cost=total_cost,
             model=self.model,
+            tool_calls=tool_call_events,
         )
 
     def _run_tavily_search(self, query: str) -> str:
