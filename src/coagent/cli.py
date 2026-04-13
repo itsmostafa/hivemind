@@ -131,7 +131,7 @@ def run(
 def _print_usage(usage: dict) -> None:
     for role, data in usage.items():
         click.echo(
-            f"  {role:10s}: {data['calls']} calls, "
+            f"  {role:10s}: {data['calls']} calls, {data['tool_calls']} tool calls, "
             f"{data['prompt_tokens'] + data['completion_tokens']} tokens, "
             f"${data['cost_usd']:.4f}"
         )

@@ -16,6 +16,7 @@ class CostTracker:
         """Record usage from a model response."""
         record = self._executor if role == "executor" else self._advisor
         record.calls += 1
+        record.tool_calls += len(response.tool_calls)
         record.prompt_tokens += response.prompt_tokens
         record.completion_tokens += response.completion_tokens
         record.cost_usd += response.cost
@@ -24,6 +25,7 @@ class CostTracker:
         """Return usage breakdown by role plus totals."""
         total = UsageRecord(
             calls=self._executor.calls + self._advisor.calls,
+            tool_calls=self._executor.tool_calls + self._advisor.tool_calls,
             prompt_tokens=self._executor.prompt_tokens + self._advisor.prompt_tokens,
             completion_tokens=self._executor.completion_tokens
             + self._advisor.completion_tokens,

@@ -78,6 +78,7 @@ class ExecutorState(BaseModel):
 
 class UsageRecord(BaseModel):
     calls: int = 0
+    tool_calls: int = 0
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cost_usd: float = 0.0
