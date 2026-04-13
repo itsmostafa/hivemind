@@ -46,6 +46,7 @@ def test_policy_config_defaults():
     assert config.confidence_threshold == 0.4
     assert config.stagnation_turns == 4
     assert config.cooldown_turns == 2
+    assert config.force_consult is False
 
 
 def test_coagent_config_defaults():
