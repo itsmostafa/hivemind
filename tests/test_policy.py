@@ -109,3 +109,95 @@ def test_advance_turn_increments_counter(policy_config):
 
     policy.advance_turn()
     assert policy._turns_since_advisor == 2
+
+
+def test_force_consult_triggers_on_first_call():
+    from coagent.schemas import PolicyConfig
+    config = PolicyConfig(
+        max_advisor_calls=3,
+        failure_threshold=2,
+        stagnation_turns=3,
+        cooldown_turns=1,
+        force_consult=True,
+    )
+    policy = DecisionPolicy(config)
+    state = make_state()
+    should, reason = policy.should_consult(state, "A normal response.")
+    assert should is True
+    assert reason == "force_consult"
+
+
+def test_force_consult_fires_once_then_normal_policy():
+    from coagent.schemas import PolicyConfig
+    config = PolicyConfig(
+        max_advisor_calls=3,
+        failure_threshold=2,
+        stagnation_turns=3,
+        cooldown_turns=1,
+        force_consult=True,
+    )
+    policy = DecisionPolicy(config)
+    state = make_state()
+
+    # First call: forced
+    should1, reason1 = policy.should_consult(state, "A normal response.")
+    assert should1 is True
+    assert reason1 == "force_consult"
+
+    # Simulate the advisor call + turn advance so cooldown doesn't mask next check
+    policy.record_advisor_call()
+    policy.advance_turn()
+
+    # Second call: no trigger — normal response, no heuristic fires
+    should2, reason2 = policy.should_consult(state, "A normal response.")
+    assert should2 is False
+    assert reason2 == "no_trigger_met"
+
+
+def test_force_consult_bypasses_cooldown_gate():
+    from coagent.schemas import PolicyConfig
+    config = PolicyConfig(
+        max_advisor_calls=3,
+        failure_threshold=2,
+        stagnation_turns=3,
+        cooldown_turns=1,
+        force_consult=True,
+    )
+    policy = DecisionPolicy(config)
+    state = make_state()
+
+    # Put policy into cooldown
+    policy.record_advisor_call()  # _turns_since_advisor = 0, cooldown active
+
+    # force_consult should still fire despite cooldown
+    should, reason = policy.should_consult(state, "A normal response.")
+    assert should is True
+    assert reason == "force_consult"
+
+
+def test_force_consult_bypasses_budget_gate():
+    from coagent.schemas import PolicyConfig
+    config = PolicyConfig(
+        max_advisor_calls=3,
+        failure_threshold=2,
+        stagnation_turns=3,
+        cooldown_turns=1,
+        force_consult=True,
+    )
+    policy = DecisionPolicy(config)
+    # Exhaust the advisor budget
+    state = make_state(advisor_calls=3)
+
+    # force_consult should still fire despite exhausted budget
+    should, reason = policy.should_consult(state, "A normal response.")
+    assert should is True
+    assert reason == "force_consult"
+
+
+def test_force_consult_false_does_not_affect_normal_policy(policy_config):
+    # Sanity: default force_consult=False means no change to existing behavior
+    policy = DecisionPolicy(policy_config)
+    state = make_state()
+    should, reason = policy.should_consult(state, "A normal response.")
+    assert should is False
+    assert reason == "no_trigger_met"

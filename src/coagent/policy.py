@@ -26,6 +26,7 @@ class DecisionPolicy:
             999  # start high so first turn isn't in cooldown
         )
         self._recent_responses: list[str] = []  # last N responses for stagnation check
+        self._force_consult_pending: bool = config.force_consult
 
     def should_consult(
         self, state: ExecutorState, executor_response: str
@@ -35,6 +36,11 @@ class DecisionPolicy:
         Returns (should_consult: bool, reason: str).
         reason explains the trigger (or why no trigger was met).
         """
+        # --- Force-consult (one-shot, checked before gates) ---
+        if self._force_consult_pending:
+            self._force_consult_pending = False
+            return True, "force_consult"
+
         # --- Gates (checked first) ---
         if state.advisor_calls >= self.config.max_advisor_calls:
             return False, "advisor_budget_exhausted"
