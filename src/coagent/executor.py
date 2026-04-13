@@ -70,16 +70,8 @@ class ExecutorLoop:
                 },
             )
 
-            # Check for completion
-            if "[DONE]" in content:
-                final_answer = content.replace("[DONE]", "").strip()
-                state.status = "completed"
-                logger.info(
-                    "Executor signaled completion on turn %d", state.turn_number
-                )
-                break
-
-            # Evaluate policy
+            # Evaluate policy (before done check so force_consult fires even on
+            # turns where the executor signals completion)
             should_consult, reason = self.policy.should_consult(state, content)
 
             self.trace_logger.log(
@@ -88,6 +80,9 @@ class ExecutorLoop:
                 should_consult=should_consult,
                 reason=reason,
             )
+
+            # Check for completion
+            done = "[DONE]" in content
 
             if should_consult:
                 logger.info("Consulting advisor: %s", reason)
@@ -126,6 +121,14 @@ class ExecutorLoop:
                 )
 
             self.policy.advance_turn()
+
+            if done:
+                final_answer = content.replace("[DONE]", "").strip()
+                state.status = "completed"
+                logger.info(
+                    "Executor signaled completion on turn %d", state.turn_number
+                )
+                break
 
         else:
             # Loop exhausted without completion
