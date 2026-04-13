@@ -124,7 +124,7 @@ def _print_usage(usage: dict) -> None:
         click.echo(
             f"  {role:10s}: {data['calls']} calls, "
             f"{data['prompt_tokens'] + data['completion_tokens']} tokens, "
-            f"${data['cost_usd']:.6f}"
+            f"${data['cost_usd']:.2f}"
         )
 
 
@@ -167,7 +167,7 @@ def trace(trace_file: str) -> None:
                         usage = event.get("usage", {})
                         total = usage.get("total", {})
                         click.echo(
-                            f"[{ts}] COMPLETE — {event.get('turns')} turns, {event.get('advisor_calls')} advisor calls, ${total.get('cost_usd', 0):.6f}"
+                            f"[{ts}] COMPLETE — {event.get('turns')} turns, {event.get('advisor_calls')} advisor calls, ${total.get('cost_usd', 0):.2f}"
                         )
                     else:
                         click.echo(f"[{ts}] {event_type}: {json.dumps(event)[:200]}")
