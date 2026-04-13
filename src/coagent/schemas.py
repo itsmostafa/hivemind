@@ -33,12 +33,18 @@ class LoggingConfig(BaseModel):
     trace_file: str | None = None
 
 
+class SearchConfig(BaseModel):
+    enabled: bool = False
+    api_key: str | None = None
+
+
 class CoagentConfig(BaseModel):
     executor: ModelConfig
     advisor: ModelConfig
     policy: PolicyConfig = Field(default_factory=PolicyConfig)
     max_turns: int = 20
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    search: SearchConfig = Field(default_factory=SearchConfig)
 
 
 class AdvisorContext(BaseModel):

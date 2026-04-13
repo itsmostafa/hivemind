@@ -134,8 +134,11 @@ class ExecutorLoop:
             # Loop exhausted without completion
             state.status = "failed"
             final_answer = next(
-                (m["content"] for m in reversed(state.messages)
-                 if m["role"] == "assistant" and m["content"].strip()),
+                (
+                    m["content"]
+                    for m in reversed(state.messages)
+                    if m["role"] == "assistant" and m["content"].strip()
+                ),
                 "",
             )
             logger.warning(

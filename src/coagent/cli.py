@@ -50,6 +50,13 @@ def cli() -> None:
     default=False,
     help="Force advisor consultation on the first policy check.",
 )
+@click.option(
+    "--search",
+    "search_enabled",
+    is_flag=True,
+    default=False,
+    help="Enable Tavily web search tool.",
+)
 def run(
     task: str,
     executor: str | None,
@@ -58,6 +65,7 @@ def run(
     advisor_api_base: str | None,
     trace: str | None,
     force_consult: bool,
+    search_enabled: bool,
 ) -> None:
     """Run coagent on a TASK."""
     # Load and merge config (auto-discovers config.yaml / config.yml)
@@ -69,6 +77,7 @@ def run(
         executor_api_base=executor_api_base,
         advisor_api_base=advisor_api_base,
         force_consult=force_consult,
+        search_enabled=search_enabled or None,
     )
 
     # Override trace file if provided via CLI
@@ -85,8 +94,8 @@ def run(
         trace_logger = NullTraceLogger()
 
     # Wire components
-    executor_client = ModelClient(config.executor)
-    advisor_client = ModelClient(config.advisor)
+    executor_client = ModelClient(config.executor, search=config.search)
+    advisor_client = ModelClient(config.advisor, search=config.search)
     advisor = Advisor(advisor_client)
     policy = DecisionPolicy(config.policy)
     tracker = CostTracker()

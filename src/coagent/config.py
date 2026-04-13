@@ -69,12 +69,14 @@ def merge_cli_overrides(
     executor_api_base: str | None = None,
     advisor_api_base: str | None = None,
     force_consult: bool = False,
+    search_enabled: bool | None = None,
 ) -> CoagentConfig:
     """Return a new CoagentConfig with CLI overrides applied.
 
     executor and advisor are model strings (e.g. "ollama/llama3").
     executor_api_base and advisor_api_base set the API endpoint for each model.
     force_consult forces advisor consultation on the first policy check.
+    search_enabled enables Tavily web search tool when True.
     None means "no override, keep config value".
     """
     data = config.model_dump()
@@ -88,4 +90,6 @@ def merge_cli_overrides(
         data["advisor"]["api_base"] = advisor_api_base
     if force_consult:
         data["policy"]["force_consult"] = True
+    if search_enabled is not None:
+        data["search"]["enabled"] = search_enabled
     return CoagentConfig.model_validate(data)
