@@ -23,8 +23,8 @@ def run_task(task: str, config: CoagentConfig | None = None) -> ExecutorResult:
     if config is None:
         config = load_config()
 
-    executor_client = ModelClient(config.executor)
-    advisor_client = ModelClient(config.advisor)
+    executor_client = ModelClient(config.executor, search=config.search)
+    advisor_client = ModelClient(config.advisor, search=config.search)
     advisor = Advisor(advisor_client)
     policy = DecisionPolicy(config.policy)
     tracker = CostTracker()
