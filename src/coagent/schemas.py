@@ -11,6 +11,7 @@ class ModelResponse(BaseModel):
     completion_tokens: int
     cost: float
     model: str
+    tool_calls: list[dict] = Field(default_factory=list)
 
 
 class ModelConfig(BaseModel):

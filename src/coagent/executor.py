@@ -59,6 +59,14 @@ class ExecutorLoop:
             # Append to conversation
             state.messages.append({"role": "assistant", "content": content})
 
+            # Log any tool calls that occurred during generation
+            for tc in response.tool_calls:
+                self.trace_logger.log(
+                    "tool_call",
+                    turn=state.turn_number,
+                    **tc,
+                )
+
             # Log the turn
             self.trace_logger.log(
                 "executor_turn",
