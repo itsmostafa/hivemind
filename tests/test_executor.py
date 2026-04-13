@@ -149,6 +149,20 @@ def test_executor_advisor_guidance_injected():
     assert "Try a completely different approach." in guidance_content
 
 
+def test_failed_run_returns_last_non_empty_answer():
+    # When the loop exhausts max_turns after real content followed by empty responses,
+    # final_answer should be the last non-empty assistant response, not "".
+    loop, _, _, _ = make_executor_loop(
+        executor_responses=["Real answer here.", "", "", ""],
+        max_turns=4,
+        policy_config=PolicyConfig(max_advisor_calls=0),
+    )
+    result = loop.run("Answer my question")
+
+    assert result.state.status == "failed"
+    assert result.final_answer == "Real answer here."
+
+
 def test_executor_usage_tracked():
     advisor_resp = AdvisorResponse(
         status="continue",
