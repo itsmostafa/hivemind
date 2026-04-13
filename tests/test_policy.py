@@ -1,7 +1,7 @@
 """Tests for DecisionPolicy in coagent.policy."""
 
 from coagent.policy import DecisionPolicy
-from coagent.schemas import ExecutorState
+from coagent.schemas import ExecutorState, PolicyConfig
 
 
 def make_state(advisor_calls: int = 0) -> ExecutorState:
@@ -112,7 +112,6 @@ def test_advance_turn_increments_counter(policy_config):
 
 
 def test_force_consult_triggers_on_first_call():
-    from coagent.schemas import PolicyConfig
     config = PolicyConfig(
         max_advisor_calls=3,
         failure_threshold=2,
@@ -128,7 +127,6 @@ def test_force_consult_triggers_on_first_call():
 
 
 def test_force_consult_fires_once_then_normal_policy():
-    from coagent.schemas import PolicyConfig
     config = PolicyConfig(
         max_advisor_calls=3,
         failure_threshold=2,
@@ -155,7 +153,6 @@ def test_force_consult_fires_once_then_normal_policy():
 
 
 def test_force_consult_bypasses_cooldown_gate():
-    from coagent.schemas import PolicyConfig
     config = PolicyConfig(
         max_advisor_calls=3,
         failure_threshold=2,
@@ -176,7 +173,6 @@ def test_force_consult_bypasses_cooldown_gate():
 
 
 def test_force_consult_bypasses_budget_gate():
-    from coagent.schemas import PolicyConfig
     config = PolicyConfig(
         max_advisor_calls=3,
         failure_threshold=2,
