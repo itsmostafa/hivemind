@@ -23,7 +23,7 @@ coagent run --executor ollama/llama3.2 --advisor openai/gpt-5.4 "Explain REST vs
 # With an OpenAI-compatible endpoint (e.g. LM Studio)
 coagent run \
   --executor openai/local-model --executor-api-base http://localhost:1234/v1 \
-  --advisor openai/gpt-4o \
+  --advisor openai/gpt-5.4 \
   "Write a CSV parser in Python"
 
 # With a config file (auto-discovered: config.yaml or config.yml in current directory)
@@ -40,8 +40,8 @@ from coagent import run_task, load_config
 from coagent.schemas import CoagentConfig, ModelConfig
 
 config = CoagentConfig(
-    executor=ModelConfig(model="ollama/llama3", api_base="http://localhost:11434"),
-    advisor=ModelConfig(model="openai/gpt-4o", api_key="..."),
+    executor=ModelConfig(model="ollama/llama3.2", api_base="http://localhost:11434"),
+    advisor=ModelConfig(model="openai/gpt-5.4", api_key="..."),
 )
 
 result = run_task("Explain REST vs GraphQL tradeoffs", config=config)
@@ -57,11 +57,11 @@ Copy `config.example.yaml` and edit for your setup:
 
 ```yaml
 executor:
-  model: "ollama/llama3"
+  model: "ollama/llama3.2"
   api_base: "http://localhost:11434"
 
 advisor:
-  model: "openai/gpt-4o"
+  model: "openai/gpt-5.4"
   api_key: "${OPENAI_API_KEY}"
 
 policy:
@@ -118,7 +118,7 @@ Gates prevent over-consulting: budget cap (`max_advisor_calls`) and cooldown (`c
 Any model supported by [LiteLLM](https://docs.litellm.ai/docs/providers):
 
 - Local: `ollama/llama3`, `ollama/mistral`
-- OpenAI: `openai/gpt-4o`, `openai/gpt-4o-mini`
+- OpenAI: `openai/gpt-5.4`, `openai/gpt-5.4-mini`
 - Anthropic: `anthropic/claude-sonnet-4-6`
 - OpenAI-compatible: set `api_base` in config, or pass `--executor-api-base` / `--advisor-api-base` via CLI
 
