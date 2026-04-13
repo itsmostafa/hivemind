@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 
 import click
 from coagent.advisor import Advisor
@@ -14,12 +14,12 @@ from coagent.tracking import CostTracker
 
 
 def _timestamped_trace_path(path: str) -> str:
-    """Insert a UTC datetime stamp into a trace file path."""
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    """Return a trace file path using local datetime as the filename."""
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     if path.endswith("/") or path.endswith(os.sep) or os.path.isdir(path):
         return os.path.join(path.rstrip("/\\"), f"{ts}.jsonl")
-    root, ext = os.path.splitext(path)
-    return f"{root}_{ts}{ext or '.jsonl'}"
+    directory = os.path.dirname(path)
+    return os.path.join(directory, f"{ts}.jsonl") if directory else f"{ts}.jsonl"
 
 
 @click.group()
