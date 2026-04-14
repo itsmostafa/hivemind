@@ -197,3 +197,26 @@ async def test_app_processes_run_start_event():
             bar = pilot.app.query_one(StatusBar)
             assert bar.model_name == "test/exec"
             assert bar.status == "running"
+
+
+async def test_app_processes_run_complete_event():
+    from unittest.mock import patch
+
+    config = CoagentConfig(
+        executor=ModelConfig(model="test/exec"),
+        advisor=ModelConfig(model="test/adv"),
+    )
+    app = CoagentApp(config=config, task="test")
+    with patch.object(CoagentApp, "_execute"):
+        async with app.run_test() as pilot:
+            complete = RunCompleteEvent(
+                turns=2,
+                advisor_calls=0,
+                status="completed",
+                final_answer="Done.",
+                usage={"total": {"cost_usd": 0.001}},
+            )
+            pilot.app.post_message(LoopEventMessage(complete))
+            await pilot.pause()
+            bar = pilot.app.query_one(StatusBar)
+            assert bar.status == "completed"

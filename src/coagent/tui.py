@@ -272,19 +272,18 @@ class CoagentApp(App):
         )
 
         try:
-            loop.run(task)
+            with trace_logger:
+                loop.run(task)
         except Exception:
             logger.exception("Executor run failed")
-        finally:
-            if hasattr(trace_logger, "close"):
-                trace_logger.close()
 
     def on_loop_event_message(self, message: LoopEventMessage) -> None:
         event = message.event
         log = self.query_one("#messages", MessageLog)
         status = self.query_one("#status", StatusBar)
 
-        log.add_event(event)
+        # Call _render_event directly since we're already on the main thread
+        log._render_event(event)
 
         if event.kind == "run_start":
             status.model_name = event.executor_model
