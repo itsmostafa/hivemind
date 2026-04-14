@@ -18,8 +18,13 @@ def _timestamped_trace_path(path: str) -> str:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     if path.endswith("/") or path.endswith(os.sep) or os.path.isdir(path):
         return os.path.join(path.rstrip("/\\"), f"{ts}.jsonl")
-    directory = os.path.dirname(path)
-    return os.path.join(directory, f"{ts}.jsonl") if directory else f"{ts}.jsonl"
+    directory, filename = os.path.split(path)
+    stem, ext = os.path.splitext(filename)
+    if ext:
+        timestamped_name = f"{stem}_{ts}{ext}"
+    else:
+        timestamped_name = f"{filename}_{ts}.jsonl"
+    return os.path.join(directory, timestamped_name) if directory else timestamped_name
 
 
 @click.group()
