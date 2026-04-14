@@ -51,7 +51,10 @@ class ExecutorLoop:
 
     def _emit(self, event: LoopEvent) -> None:
         if self._on_event is not None:
-            self._on_event(event)
+            try:
+                self._on_event(event)
+            except Exception:
+                logger.exception("on_event callback raised; ignoring")
 
     def run(self, task: str) -> ExecutorResult:
         """Run the executor loop for a given task. Returns the final result."""

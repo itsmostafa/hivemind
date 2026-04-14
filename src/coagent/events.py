@@ -27,7 +27,7 @@ class TurnCompleteEvent(BaseModel):
     kind: Literal["turn_complete"] = "turn_complete"
     turn: int
     max_turns: int
-    content: str
+    content: str  # full untruncated content (trace logger truncates at 500 chars)
     tool_calls: list[dict] = Field(default_factory=list)
     prompt_tokens: int
     completion_tokens: int

@@ -210,3 +210,4 @@ def test_event_order():
     assert kinds[-1] == "run_complete"
     assert "turn_complete" in kinds
     assert "policy_check" in kinds
+    assert kinds.index("turn_complete") < kinds.index("policy_check")
