@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import logging
+
 from rich.text import Text
 from textual.containers import VerticalScroll
+from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Static
 
 from coagent.events import LoopEvent
+
+logger = logging.getLogger(__name__)
+
+_CONTENT_PREVIEW_CHARS = 500
 
 
 class StatusBar(Static):
@@ -58,6 +65,13 @@ class StatusBar(Static):
 class MessageLog(VerticalScroll):
     """Scrollable container for displaying run events as messages."""
 
+    class EventReceived(Message):
+        """Posted from any thread to deliver an event to the message log."""
+
+        def __init__(self, event: LoopEvent) -> None:
+            super().__init__()
+            self.loop_event = event
+
     DEFAULT_CSS = """
     MessageLog {
         height: 1fr;
@@ -94,7 +108,15 @@ class MessageLog(VerticalScroll):
     """
 
     def add_event(self, event: LoopEvent) -> None:
-        """Add an event to the message log and auto-scroll."""
+        """Thread-safe: post event to the main event loop for rendering."""
+        self.post_message(self.EventReceived(event))
+
+    def on_message_log_event_received(self, message: EventReceived) -> None:
+        """Render the event on the main thread."""
+        self._render_event(message.loop_event)
+
+    def _render_event(self, event: LoopEvent) -> None:
+        """Mount widgets for the given event. Must be called on the main thread."""
         if event.kind == "run_start":
             text = Text()
             text.append(f"> Task: {event.task}", style="bold")
@@ -108,8 +130,8 @@ class MessageLog(VerticalScroll):
                 style="dim",
             )
             self.mount(Static(header, classes="turn-header"))
-            display_content = event.content[:500]
-            if len(event.content) > 500:
+            display_content = event.content[:_CONTENT_PREVIEW_CHARS]
+            if len(event.content) > _CONTENT_PREVIEW_CHARS:
                 display_content += "..."
             self.mount(Static(display_content, classes="turn-content"))
         elif event.kind == "policy_check":
@@ -139,11 +161,13 @@ class MessageLog(VerticalScroll):
             css_class = "completion" if event.status == "completed" else "failure"
             icon = "✓" if event.status == "completed" else "✗"
             line = Text()
-            line.append(f"\n{icon} ", style="bold")
+            line.append(f"{icon} ", style="bold")
             line.append(f"Run {event.status}", style="bold")
             line.append(f" — {event.turns} turns, {event.advisor_calls} advisor calls")
             cost = event.usage.get("total", {}).get("cost_usd", 0)
             line.append(f", ${cost:.4f}", style="dim")
             self.mount(Static(line, classes=css_class))
+        else:
+            logger.warning("MessageLog: unhandled event kind %r", event.kind)
 
         self.scroll_end(animate=False)

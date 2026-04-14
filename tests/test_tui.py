@@ -7,6 +7,8 @@ from textual.widgets import Static
 
 from coagent.events import (
     AdvisorCallEvent,
+    PolicyCheckEvent,
+    RunCompleteEvent,
     RunStartEvent,
     TurnCompleteEvent,
 )
@@ -109,3 +111,38 @@ async def test_message_log_add_advisor():
         all_text = " ".join(str(w.content) for w in widgets)
         assert "Advisor" in all_text
         assert "right track" in all_text
+
+
+async def test_message_log_policy_check_consult():
+    async with MessageLogTestApp().run_test() as pilot:
+        log = pilot.app.query_one(MessageLog)
+        log.add_event(
+            PolicyCheckEvent(
+                turn=1,
+                should_consult=True,
+                reason="low_confidence",
+            )
+        )
+        await pilot.pause()
+        widgets = log.query(Static)
+        all_text = " ".join(str(w.content) for w in widgets)
+        assert "low_confidence" in all_text
+
+
+async def test_message_log_run_complete():
+    async with MessageLogTestApp().run_test() as pilot:
+        log = pilot.app.query_one(MessageLog)
+        log.add_event(
+            RunCompleteEvent(
+                turns=3,
+                advisor_calls=1,
+                status="completed",
+                final_answer="Done.",
+                usage={"total": {"cost_usd": 0.005}},
+            )
+        )
+        await pilot.pause()
+        widgets = log.query(Static)
+        all_text = " ".join(str(w.content) for w in widgets)
+        assert "completed" in all_text
+        assert "3 turns" in all_text
