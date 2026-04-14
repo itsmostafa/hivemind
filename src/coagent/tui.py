@@ -10,7 +10,7 @@ from textual.reactive import reactive
 from textual.widgets import Header, Input, Static
 
 from coagent.advisor import Advisor
-from coagent.events import LoopEvent
+from coagent.events import ErrorEvent, LoopEvent
 from coagent.executor import ExecutorLoop
 from coagent.log import NullTraceLogger, TraceLogger
 from coagent.models import ModelClient
@@ -175,6 +175,13 @@ class MessageLog(VerticalScroll):
             cost = event.usage.get("total", {}).get("cost_usd", 0)
             line.append(f", ${cost:.4f}", style="dim")
             self.mount(Static(line, classes=css_class))
+        elif event.kind == "error":
+            block = Text()
+            block.append("✗ Error: ", style="bold red")
+            block.append(event.message, style="red")
+            if event.traceback:
+                block.append(f"\n{event.traceback}", style="dim red")
+            self.mount(Static(block, classes="failure"))
         else:
             logger.warning("MessageLog: unhandled event kind %r", event.kind)
 
@@ -271,11 +278,20 @@ class CoagentApp(App):
             on_event=on_event,
         )
 
+        import traceback as tb
+
         try:
             with trace_logger:
                 loop.run(task)
-        except Exception:
-            logger.exception("Executor run failed")
+        except Exception as exc:
+            self.post_message(
+                LoopEventMessage(
+                    ErrorEvent(
+                        message=str(exc),
+                        traceback=tb.format_exc(),
+                    )
+                )
+            )
 
     def on_loop_event_message(self, message: LoopEventMessage) -> None:
         event = message.event

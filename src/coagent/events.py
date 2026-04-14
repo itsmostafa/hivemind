@@ -10,6 +10,7 @@ __all__ = [
     "PolicyCheckEvent",
     "AdvisorCallEvent",
     "RunCompleteEvent",
+    "ErrorEvent",
     "LoopEvent",
     "EventCallback",
 ]
@@ -63,12 +64,19 @@ class RunCompleteEvent(BaseModel):
     usage: dict
 
 
+class ErrorEvent(BaseModel):
+    kind: Literal["error"] = "error"
+    message: str
+    traceback: str | None = None
+
+
 LoopEvent = (
     RunStartEvent
     | TurnCompleteEvent
     | PolicyCheckEvent
     | AdvisorCallEvent
     | RunCompleteEvent
+    | ErrorEvent
 )
 
 

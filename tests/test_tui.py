@@ -237,3 +237,24 @@ def test_coagent_launches_tui_as_default():
         mock_instance.run.return_value = None
         CliRunner().invoke(cli, ["--executor", "test/model", "Do a task"])
         MockApp.assert_called_once()
+
+
+async def test_app_displays_error():
+    from unittest.mock import patch
+
+    config = CoagentConfig(
+        executor=ModelConfig(model="test/exec"),
+        advisor=ModelConfig(model="test/adv"),
+    )
+    from coagent.events import ErrorEvent
+
+    app = CoagentApp(config=config, task="test")
+    with patch.object(app, "_execute"):
+        async with app.run_test() as pilot:
+            error = ErrorEvent(message="Connection refused", traceback="Traceback ...")
+            pilot.app.post_message(LoopEventMessage(error))
+            await pilot.pause()
+            log = pilot.app.query_one(MessageLog)
+            widgets = log.query(Static)
+            all_text = " ".join(str(w.content) for w in widgets)
+            assert "Connection refused" in all_text
