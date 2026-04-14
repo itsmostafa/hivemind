@@ -12,6 +12,31 @@ from coagent.models import ModelClient
 from coagent.policy import DecisionPolicy
 from coagent.tracking import CostTracker
 
+try:
+    from coagent.tui import CoagentApp
+except ImportError:
+    CoagentApp = None  # type: ignore[assignment,misc]
+
+
+class DefaultToTUIGroup(click.Group):
+    """A Click Group that falls back to TUI mode when no known subcommand is given.
+
+    Any positional args that don't match a registered subcommand are collected
+    into ``ctx.meta['tui_task']`` and the group callback is invoked instead.
+    """
+
+    def invoke(self, ctx: click.Context) -> object:
+        # Check remaining args (Click 8.x stores them in _protected_args).
+        remaining = list(ctx._protected_args) + list(ctx.args)  # type: ignore[attr-defined]
+        if remaining:
+            first = remaining[0]
+            if first not in self.commands and not self.get_command(ctx, first):
+                # Remaining args are not a known subcommand — treat as task.
+                ctx.meta["tui_task"] = " ".join(remaining)
+                ctx._protected_args = []  # type: ignore[attr-defined]
+                ctx.args = []
+        return super().invoke(ctx)
+
 
 def _timestamped_trace_path(path: str) -> str:
     """Return a trace file path using local datetime as the filename."""
@@ -27,9 +52,84 @@ def _timestamped_trace_path(path: str) -> str:
     return os.path.join(directory, timestamped_name) if directory else timestamped_name
 
 
-@click.group()
-def cli() -> None:
+@click.group(
+    cls=DefaultToTUIGroup,
+    invoke_without_command=True,
+    context_settings={"allow_extra_args": True, "allow_interspersed_args": False},
+)
+@click.option(
+    "--executor", default=None, help="Executor model string (e.g. ollama/llama3)."
+)
+@click.option(
+    "--executor-api-base",
+    default=None,
+    help="API base URL for executor (e.g. http://localhost:1234/v1).",
+)
+@click.option("--advisor", "advisor_model", default=None, help="Advisor model string.")
+@click.option(
+    "--advisor-api-base",
+    default=None,
+    help="API base URL for advisor (e.g. http://localhost:1234/v1).",
+)
+@click.option("--trace", default=None, help="Path to write JSONL trace file.")
+@click.option(
+    "--force-consult",
+    is_flag=True,
+    default=False,
+    help="Force advisor consultation on the first policy check.",
+)
+@click.option(
+    "--search",
+    "search_enabled",
+    is_flag=True,
+    default=False,
+    help="Enable Tavily web search tool.",
+)
+@click.pass_context
+def cli(
+    ctx: click.Context,
+    executor: str | None,
+    executor_api_base: str | None,
+    advisor_model: str | None,
+    advisor_api_base: str | None,
+    trace: str | None,
+    force_consult: bool,
+    search_enabled: bool,
+) -> None:
     """Coagent: advisor strategy LLM framework."""
+    if ctx.invoked_subcommand is not None:
+        return
+
+    if CoagentApp is None:
+        click.echo(
+            "TUI requires the 'textual' package. Install with: pip install coagent[tui]",
+            err=True,
+        )
+        sys.exit(1)
+
+    # Any remaining positional args (non-subcommand) are treated as the task
+    task: str | None = ctx.meta.get("tui_task") or None
+
+    config = load_config()
+    config = merge_cli_overrides(
+        config,
+        executor=executor,
+        advisor=advisor_model,
+        executor_api_base=executor_api_base,
+        advisor_api_base=advisor_api_base,
+        force_consult=force_consult,
+        search_enabled=search_enabled or None,
+    )
+
+    if trace:
+        config.logging.trace_file = trace
+
+    trace_file = None
+    if config.logging.trace_file:
+        trace_file = _timestamped_trace_path(config.logging.trace_file)
+
+    app = CoagentApp(config=config, task=task, trace_file=trace_file)
+    app.run()
 
 
 @cli.command()

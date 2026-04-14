@@ -1,10 +1,14 @@
+from unittest.mock import patch
+
 import pytest
+from click.testing import CliRunner
 
 pytest.importorskip("textual")
 
 from textual.app import App, ComposeResult
 from textual.widgets import Static
 
+from coagent.cli import cli
 from coagent.events import (
     AdvisorCallEvent,
     PolicyCheckEvent,
@@ -220,3 +224,16 @@ async def test_app_processes_run_complete_event():
             await pilot.pause()
             bar = pilot.app.query_one(StatusBar)
             assert bar.status == "completed"
+
+
+def test_coagent_bare_shows_help_with_tui_default():
+    result = CliRunner().invoke(cli, ["--help"])
+    assert result.exit_code == 0
+
+
+def test_coagent_launches_tui_as_default():
+    with patch("coagent.cli.CoagentApp") as MockApp:
+        mock_instance = MockApp.return_value
+        mock_instance.run.return_value = None
+        CliRunner().invoke(cli, ["--executor", "test/model", "Do a task"])
+        MockApp.assert_called_once()
