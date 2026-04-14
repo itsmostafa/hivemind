@@ -3,12 +3,20 @@ from __future__ import annotations
 import logging
 
 from rich.text import Text
+from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
 from textual.message import Message
 from textual.reactive import reactive
-from textual.widgets import Static
+from textual.widgets import Header, Input, Static
 
+from coagent.advisor import Advisor
 from coagent.events import LoopEvent
+from coagent.executor import ExecutorLoop
+from coagent.log import NullTraceLogger, TraceLogger
+from coagent.models import ModelClient
+from coagent.policy import DecisionPolicy
+from coagent.schemas import CoagentConfig
+from coagent.tracking import CostTracker
 
 logger = logging.getLogger(__name__)
 
@@ -171,3 +179,122 @@ class MessageLog(VerticalScroll):
             logger.warning("MessageLog: unhandled event kind %r", event.kind)
 
         self.scroll_end(animate=False)
+
+
+class LoopEventMessage(Message):
+    """Thread-safe message to deliver executor events to CoagentApp."""
+
+    def __init__(self, event: LoopEvent) -> None:
+        super().__init__()
+        self.event = event
+
+
+class CoagentApp(App):
+    """Coagent TUI application."""
+
+    TITLE = "Coagent"
+
+    CSS = """
+    Screen {
+        layout: vertical;
+    }
+    #task-input {
+        dock: bottom;
+        margin: 0 2 1 2;
+    }
+    """
+
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+    ]
+
+    def __init__(
+        self,
+        config: CoagentConfig,
+        task: str | None = None,
+        trace_file: str | None = None,
+    ) -> None:
+        super().__init__()
+        self.config = config
+        self.initial_task = task
+        self.trace_file = trace_file
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield MessageLog(id="messages")
+        if self.initial_task is None:
+            yield Input(
+                placeholder="Enter your task...",
+                id="task-input",
+            )
+        yield StatusBar(id="status")
+
+    def on_mount(self) -> None:
+        if self.initial_task:
+            self._start_run(self.initial_task)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        task = event.value.strip()
+        if task:
+            event.input.remove()
+            self._start_run(task)
+
+    def _start_run(self, task: str) -> None:
+        self.run_worker(
+            lambda: self._execute(task),
+            thread=True,
+            exclusive=True,
+        )
+
+    def _execute(self, task: str) -> None:
+        executor_client = ModelClient(self.config.executor, search=self.config.search)
+        advisor_client = ModelClient(self.config.advisor, search=self.config.search)
+        advisor = Advisor(advisor_client)
+        policy = DecisionPolicy(self.config.policy)
+        tracker = CostTracker()
+
+        if self.trace_file:
+            trace_logger: TraceLogger | NullTraceLogger = TraceLogger(self.trace_file)
+        else:
+            trace_logger = NullTraceLogger()
+
+        def on_event(event: LoopEvent) -> None:
+            self.post_message(LoopEventMessage(event))
+
+        loop = ExecutorLoop(
+            executor_client=executor_client,
+            advisor=advisor,
+            policy=policy,
+            tracker=tracker,
+            trace_logger=trace_logger,
+            config=self.config,
+            on_event=on_event,
+        )
+
+        try:
+            loop.run(task)
+        except Exception:
+            logger.exception("Executor run failed")
+        finally:
+            if hasattr(trace_logger, "close"):
+                trace_logger.close()
+
+    def on_loop_event_message(self, message: LoopEventMessage) -> None:
+        event = message.event
+        log = self.query_one("#messages", MessageLog)
+        status = self.query_one("#status", StatusBar)
+
+        log.add_event(event)
+
+        if event.kind == "run_start":
+            status.model_name = event.executor_model
+            status.turn_info = f"0/{event.max_turns}"
+            status.status = "running"
+        elif event.kind == "turn_complete":
+            status.turn_info = f"{event.turn}/{event.max_turns}"
+            status.total_tokens += event.prompt_tokens + event.completion_tokens
+            status.cost = event.cumulative_cost
+        elif event.kind == "run_complete":
+            status.status = event.status
+        elif event.kind == "error":
+            status.status = "failed"

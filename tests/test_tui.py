@@ -12,7 +12,8 @@ from coagent.events import (
     RunStartEvent,
     TurnCompleteEvent,
 )
-from coagent.tui import MessageLog, StatusBar
+from coagent.schemas import CoagentConfig, ModelConfig
+from coagent.tui import CoagentApp, LoopEventMessage, MessageLog, StatusBar
 
 pytestmark = pytest.mark.anyio
 
@@ -146,3 +147,53 @@ async def test_message_log_run_complete():
         all_text = " ".join(str(w.content) for w in widgets)
         assert "completed" in all_text
         assert "3 turns" in all_text
+
+
+async def test_app_has_message_log_and_status_bar():
+    from unittest.mock import patch
+
+    config = CoagentConfig(
+        executor=ModelConfig(model="test/exec"),
+        advisor=ModelConfig(model="test/adv"),
+    )
+    app = CoagentApp(config=config, task="test task")
+    with patch.object(app, "_execute"):
+        async with app.run_test() as pilot:
+            assert pilot.app.query_one(MessageLog) is not None
+            assert pilot.app.query_one(StatusBar) is not None
+
+
+async def test_app_shows_input_when_no_task():
+    from textual.widgets import Input
+
+    config = CoagentConfig(
+        executor=ModelConfig(model="test/exec"),
+        advisor=ModelConfig(model="test/adv"),
+    )
+    app = CoagentApp(config=config, task=None)
+    async with app.run_test() as pilot:
+        inputs = pilot.app.query(Input)
+        assert len(inputs) >= 1
+
+
+async def test_app_processes_run_start_event():
+    from unittest.mock import patch
+
+    config = CoagentConfig(
+        executor=ModelConfig(model="test/exec"),
+        advisor=ModelConfig(model="test/adv"),
+    )
+    app = CoagentApp(config=config, task="test")
+    with patch.object(app, "_execute"):
+        async with app.run_test() as pilot:
+            start = RunStartEvent(
+                task="test",
+                executor_model="test/exec",
+                advisor_model="test/adv",
+                max_turns=20,
+            )
+            pilot.app.post_message(LoopEventMessage(start))
+            await pilot.pause()
+            bar = pilot.app.query_one(StatusBar)
+            assert bar.model_name == "test/exec"
+            assert bar.status == "running"
