@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from hivemind.config import load_config, merge_cli_overrides
 from hivemind.schemas import (
     AdvisorResponse,
-    hivemindConfig,
+    HivemindConfig,
     ExecutorResult,
     ExecutorState,
     ModelConfig,
@@ -50,7 +50,7 @@ def test_policy_config_defaults():
 
 
 def test_hivemind_config_defaults():
-    config = hivemindConfig(
+    config = HivemindConfig(
         executor=ModelConfig(model="ollama/llama3"),
         advisor=ModelConfig(model="ollama/llama3"),
     )
@@ -85,7 +85,7 @@ def test_executor_result_roundtrip():
     assert result.advisor_history == []
 
 
-def test_merge_cli_overrides_sets_executor_api_base():
+def test_merge_cli_overrides_sets_executor_api_base(home_tmp):
     config = load_config()
     result = merge_cli_overrides(
         config,
@@ -96,7 +96,7 @@ def test_merge_cli_overrides_sets_executor_api_base():
     assert result.executor.api_base == "http://localhost:1234/v1"
 
 
-def test_merge_cli_overrides_sets_advisor_api_base():
+def test_merge_cli_overrides_sets_advisor_api_base(home_tmp):
     config = load_config()
     result = merge_cli_overrides(
         config,
@@ -108,7 +108,7 @@ def test_merge_cli_overrides_sets_advisor_api_base():
 
 
 def test_merge_cli_overrides_api_base_none_preserves_existing():
-    config = hivemindConfig(
+    config = HivemindConfig(
         executor=ModelConfig(model="ollama/llama3"),
         advisor=ModelConfig(model="ollama/llama3"),
     )
@@ -127,13 +127,13 @@ def test_policy_config_force_consult_can_be_set():
     assert config.force_consult is True
 
 
-def test_merge_cli_overrides_force_consult_sets_policy_flag():
+def test_merge_cli_overrides_force_consult_sets_policy_flag(home_tmp):
     config = load_config()
     result = merge_cli_overrides(config, force_consult=True)
     assert result.policy.force_consult is True
 
 
-def test_merge_cli_overrides_force_consult_default_leaves_flag_false():
+def test_merge_cli_overrides_force_consult_default_leaves_flag_false(home_tmp):
     config = load_config()
     result = merge_cli_overrides(config)
     assert result.policy.force_consult is False

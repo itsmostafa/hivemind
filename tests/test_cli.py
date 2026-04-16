@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from click.testing import CliRunner
 
+from hivemind._templates import DEFAULT_CONFIG_YAML
 from hivemind.cli import _timestamped_trace_path, cli
 
 FIXED_DT = datetime(2026, 4, 11, 15, 30, 45, tzinfo=timezone.utc)
@@ -37,6 +38,37 @@ def test_no_extension_appends_jsonl_with_timestamp():
         mock_dt.now.return_value = FIXED_DT
         result = _timestamped_trace_path("traces/run")
     assert result == "traces/run_20260411_153045.jsonl"
+
+
+def test_init_creates_user_config(home_tmp):
+    runner = CliRunner()
+    config_path = home_tmp / ".hivemind" / "config.yml"
+    assert not config_path.exists()
+    result = runner.invoke(cli, ["init"])
+    assert result.exit_code == 0
+    assert config_path.exists()
+    assert config_path.read_text() == DEFAULT_CONFIG_YAML
+    assert str(config_path) in result.output
+
+
+def test_init_refuses_to_overwrite_without_force(home_tmp):
+    runner = CliRunner()
+    config_path = home_tmp / ".hivemind" / "config.yml"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text("original content")
+    result = runner.invoke(cli, ["init"])
+    assert result.exit_code != 0
+    assert config_path.read_text() == "original content"
+
+
+def test_init_overwrites_with_force(home_tmp):
+    runner = CliRunner()
+    config_path = home_tmp / ".hivemind" / "config.yml"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text("original content")
+    result = runner.invoke(cli, ["init", "--force"])
+    assert result.exit_code == 0
+    assert config_path.read_text() == DEFAULT_CONFIG_YAML
 
 
 def test_force_consult_flag_passes_through_to_merge_cli_overrides():
