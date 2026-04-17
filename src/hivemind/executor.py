@@ -10,6 +10,8 @@ from hivemind.tracking import CostTracker
 
 logger = logging.getLogger(__name__)
 
+_EMPTY_RESPONSE_NUDGE = "Your last response was empty. If you have finished, please repeat your final answer and end with [DONE]."
+
 EXECUTOR_SYSTEM_PROMPT = """You are an AI assistant working to complete a task given by the user. Work through the task step by step.
 
 When you have fully completed the task and produced a final answer, end your response with exactly: [DONE]
@@ -62,8 +64,13 @@ class ExecutorLoop:
             self.tracker.record("executor", response)
             content = response.content
 
-            # Append to conversation
-            state.messages.append({"role": "assistant", "content": content})
+            # Empty response cascades into further empty turns; nudge instead.
+            if content:
+                state.messages.append({"role": "assistant", "content": content})
+            else:
+                state.messages.append(
+                    {"role": "user", "content": _EMPTY_RESPONSE_NUDGE}
+                )
 
             # Log any tool calls that occurred during generation
             for tc in response.tool_calls:

@@ -210,6 +210,31 @@ def test_executor_usage_tracked():
     assert summary["advisor"]["cost_usd"] > 0
 
 
+def test_empty_content_injects_nudge_not_empty_assistant_message():
+    # Empty response should become a user nudge, not an empty assistant message,
+    # to prevent cascading empty turns.
+    loop, _, _, _ = make_executor_loop(
+        executor_responses=["", "Final answer. [DONE]"],
+        policy_config=PolicyConfig(max_advisor_calls=0),
+    )
+    result = loop.run("Do something")
+
+    assert result.state.status == "completed"
+    # The empty turn should produce a user nudge, not an empty assistant message
+    nudge_messages = [
+        m
+        for m in result.state.messages
+        if m["role"] == "user" and "empty" in m["content"]
+    ]
+    assert len(nudge_messages) == 1
+    empty_assistant_messages = [
+        m
+        for m in result.state.messages
+        if m["role"] == "assistant" and not m["content"].strip()
+    ]
+    assert empty_assistant_messages == []
+
+
 def test_run_accepts_existing_state_appends_user_message():
     loop, _, _, _ = make_executor_loop(
         executor_responses=["answer [DONE]"],
