@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Suppress litellm's verbose logging by default
 litellm.suppress_debug_info = True
+logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 
 TAVILY_SEARCH_TOOL: dict = {
     "type": "function",
