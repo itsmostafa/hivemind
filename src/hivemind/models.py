@@ -163,9 +163,13 @@ class ModelClient:
 
     def _run_tavily_search(self, query: str) -> str:
         """Execute a Tavily web search and return JSON results."""
-        if self.search and self.search.api_key:
-            client = TavilyClient(api_key=self.search.api_key)
-        else:
-            client = TavilyClient()
-        result = client.search(query)
-        return json.dumps(result)
+        try:
+            if self.search and self.search.api_key:
+                client = TavilyClient(api_key=self.search.api_key)
+            else:
+                client = TavilyClient()
+            result = client.search(query)
+            return json.dumps(result)
+        except Exception as e:
+            logger.warning("Tavily search failed for query %r: %s", query, e)
+            return json.dumps({"error": str(e), "results": []})
