@@ -1,10 +1,11 @@
+import os
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
 
 from click.testing import CliRunner
 
 from hivemind._templates import DEFAULT_CONFIG_YAML
-from hivemind.cli import _timestamped_trace_path, cli
+from hivemind.cli import _auto_trace_dir, _timestamped_trace_path, cli
 
 FIXED_DT = datetime(2026, 4, 11, 15, 30, 45, tzinfo=timezone.utc)
 
@@ -38,6 +39,54 @@ def test_no_extension_appends_jsonl_with_timestamp():
         mock_dt.now.return_value = FIXED_DT
         result = _timestamped_trace_path("traces/run")
     assert result == "traces/run_20260411_153045.jsonl"
+
+
+def test_auto_trace_dir_strips_home_prefix(tmp_path):
+    fake_home = str(tmp_path)
+    fake_cwd = str(tmp_path / "Projects" / "tools" / "hivemind")
+    with (
+        patch("hivemind.cli.os.getcwd", return_value=fake_cwd),
+        patch("hivemind.cli.os.path.expanduser", return_value=fake_home),
+    ):
+        result = _auto_trace_dir()
+    expected = (
+        os.path.join(fake_home, ".hivemind", "logs", "Projects-tools-hivemind") + os.sep
+    )
+    assert result == expected
+
+
+def test_auto_trace_dir_non_home_path(tmp_path):
+    fake_home = str(tmp_path / "home" / "user")
+    fake_cwd = "/opt/myproject/src"
+    with (
+        patch("hivemind.cli.os.getcwd", return_value=fake_cwd),
+        patch("hivemind.cli.os.path.expanduser", return_value=fake_home),
+    ):
+        result = _auto_trace_dir()
+    expected = (
+        os.path.join(fake_home, ".hivemind", "logs", "opt-myproject-src") + os.sep
+    )
+    assert result == expected
+
+
+def test_auto_trace_dir_produces_correct_timestamped_path(tmp_path):
+    fake_home = str(tmp_path)
+    fake_cwd = str(tmp_path / "Projects" / "tools" / "hivemind")
+    with (
+        patch("hivemind.cli.os.getcwd", return_value=fake_cwd),
+        patch("hivemind.cli.os.path.expanduser", return_value=fake_home),
+        patch("hivemind.cli.datetime") as mock_dt,
+    ):
+        mock_dt.now.return_value = FIXED_DT
+        result = _timestamped_trace_path(_auto_trace_dir())
+    expected = os.path.join(
+        fake_home,
+        ".hivemind",
+        "logs",
+        "Projects-tools-hivemind",
+        "20260411_153045.jsonl",
+    )
+    assert result == expected
 
 
 def test_init_creates_user_config(home_tmp):
@@ -90,6 +139,7 @@ def test_chat_quits_immediately_on_q():
     with (
         patch("hivemind.cli.load_config", return_value=MagicMock()),
         patch("hivemind.cli.merge_cli_overrides", return_value=mock_config),
+        patch("hivemind.cli.TraceLogger"),
         patch("hivemind.cli.ModelClient"),
         patch("hivemind.cli.Advisor"),
         patch("hivemind.cli.DecisionPolicy"),
@@ -107,6 +157,7 @@ def test_chat_help_prints_and_continues():
     with (
         patch("hivemind.cli.load_config", return_value=MagicMock()),
         patch("hivemind.cli.merge_cli_overrides", return_value=mock_config),
+        patch("hivemind.cli.TraceLogger"),
         patch("hivemind.cli.ModelClient"),
         patch("hivemind.cli.Advisor"),
         patch("hivemind.cli.DecisionPolicy"),
@@ -134,6 +185,7 @@ def test_chat_carries_state_across_turns():
     with (
         patch("hivemind.cli.load_config", return_value=MagicMock()),
         patch("hivemind.cli.merge_cli_overrides", return_value=mock_config),
+        patch("hivemind.cli.TraceLogger"),
         patch("hivemind.cli.ModelClient"),
         patch("hivemind.cli.Advisor"),
         patch("hivemind.cli.DecisionPolicy"),
@@ -163,6 +215,7 @@ def test_chat_reset_clears_state():
     with (
         patch("hivemind.cli.load_config", return_value=MagicMock()),
         patch("hivemind.cli.merge_cli_overrides", return_value=mock_config),
+        patch("hivemind.cli.TraceLogger"),
         patch("hivemind.cli.ModelClient"),
         patch("hivemind.cli.Advisor"),
         patch("hivemind.cli.DecisionPolicy"),
@@ -186,6 +239,7 @@ def test_chat_search_flag_passes_through():
         patch(
             "hivemind.cli.merge_cli_overrides", return_value=mock_config
         ) as mock_merge,
+        patch("hivemind.cli.TraceLogger"),
         patch("hivemind.cli.ModelClient"),
         patch("hivemind.cli.Advisor"),
         patch("hivemind.cli.DecisionPolicy"),
@@ -215,6 +269,7 @@ def test_force_consult_flag_passes_through_to_merge_cli_overrides():
         patch(
             "hivemind.cli.merge_cli_overrides", return_value=mock_config
         ) as mock_merge,
+        patch("hivemind.cli.TraceLogger"),
         patch("hivemind.cli.ExecutorLoop") as mock_loop_cls,
     ):
         mock_loop_cls.return_value.run.return_value = mock_result

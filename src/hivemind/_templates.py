@@ -22,7 +22,7 @@ max_turns: 20                 # max executor loop turns
 
 logging:
   level: "INFO"               # DEBUG, INFO, WARNING
-  trace_file: "traces/run.jsonl"  # JSONL trace output path
+  # trace_file: "traces/run.jsonl"  # override via --trace flag; auto path used by default
 
 # Web search tool — models decide when to call it (tool_choice="auto")
 # Requires a Tavily API key: https://tavily.com

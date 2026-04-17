@@ -10,10 +10,24 @@ from hivemind.advisor import Advisor
 from hivemind import config as _config
 from hivemind.config import load_config, merge_cli_overrides
 from hivemind.executor import ExecutorLoop
-from hivemind.log import NullTraceLogger, TraceLogger, configure_logging
+from hivemind.log import TraceLogger, configure_logging
 from hivemind.models import ModelClient
 from hivemind.policy import DecisionPolicy
 from hivemind.tracking import CostTracker
+
+
+def _auto_trace_dir() -> str:
+    """Return default trace directory under ~/.hivemind/logs/ based on CWD."""
+    cwd = os.getcwd()
+    home = os.path.expanduser("~")
+    rel = cwd[len(home) :].lstrip("/\\") if cwd.startswith(home) else cwd.lstrip("/\\")
+    slug = rel.replace("/", "-").replace("\\", "-")
+    return os.path.join(home, ".hivemind", "logs", slug) + os.sep
+
+
+def _make_trace_logger(trace: str | None) -> TraceLogger:
+    path = trace or _auto_trace_dir()
+    return TraceLogger(_timestamped_trace_path(path))
 
 
 def _timestamped_trace_path(path: str) -> str:
@@ -104,18 +118,10 @@ def run(
         search_enabled=search_enabled or None,
     )
 
-    # Override trace file if provided via CLI
-    if trace:
-        config.logging.trace_file = trace
-
     # Set up logging
     configure_logging(config.logging.level)
 
-    # Set up trace logger
-    if config.logging.trace_file:
-        trace_logger = TraceLogger(_timestamped_trace_path(config.logging.trace_file))
-    else:
-        trace_logger = NullTraceLogger()
+    trace_logger = _make_trace_logger(trace)
 
     # Wire components
     executor_client = ModelClient(config.executor, search=config.search)
@@ -194,15 +200,9 @@ def chat(
         search_enabled=search_enabled or None,
     )
 
-    if trace:
-        config.logging.trace_file = trace
-
     configure_logging(config.logging.level)
 
-    if config.logging.trace_file:
-        trace_logger = TraceLogger(_timestamped_trace_path(config.logging.trace_file))
-    else:
-        trace_logger = NullTraceLogger()
+    trace_logger = _make_trace_logger(trace)
 
     executor_client = ModelClient(config.executor, search=config.search)
     advisor_client = ModelClient(config.advisor, search=config.search)
