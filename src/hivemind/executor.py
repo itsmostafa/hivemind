@@ -38,10 +38,16 @@ class ExecutorLoop:
         self.trace_logger = trace_logger
         self.config = config
 
-    def run(self, task: str) -> ExecutorResult:
-        """Run the executor loop for a given task. Returns the final result."""
-        state = ExecutorState(task=task)
-        state.messages.append({"role": "user", "content": task})
+    def run(self, task: str, state: ExecutorState | None = None) -> ExecutorResult:
+        """Run the executor loop. If state is provided, continue from it (chat follow-up)."""
+        if state is None:
+            state = ExecutorState(task=task)
+            state.messages.append({"role": "user", "content": task})
+        else:
+            state.messages.append({"role": "user", "content": task})
+            state.turn_number = 0
+            state.status = "running"
+            state.advisor_calls = 0
 
         final_answer = ""
 

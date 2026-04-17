@@ -71,6 +71,132 @@ def test_init_overwrites_with_force(home_tmp):
     assert config_path.read_text() == DEFAULT_CONFIG_YAML
 
 
+def _make_chat_mocks():
+    mock_config = MagicMock()
+    mock_config.logging.trace_file = None
+    mock_config.logging.level = "INFO"
+
+    mock_result = MagicMock()
+    mock_result.final_answer = "answer"
+    mock_result.usage_summary = {}
+    mock_result.state = MagicMock()
+
+    return mock_config, mock_result
+
+
+def test_chat_quits_immediately_on_q():
+    mock_config, _ = _make_chat_mocks()
+    runner = CliRunner()
+    with (
+        patch("hivemind.cli.load_config", return_value=MagicMock()),
+        patch("hivemind.cli.merge_cli_overrides", return_value=mock_config),
+        patch("hivemind.cli.ModelClient"),
+        patch("hivemind.cli.Advisor"),
+        patch("hivemind.cli.DecisionPolicy"),
+        patch("hivemind.cli.ExecutorLoop") as mock_loop_cls,
+    ):
+        result = runner.invoke(cli, ["chat"], input="q\n")
+
+    assert result.exit_code == 0
+    mock_loop_cls.return_value.run.assert_not_called()
+
+
+def test_chat_help_prints_and_continues():
+    mock_config, _ = _make_chat_mocks()
+    runner = CliRunner()
+    with (
+        patch("hivemind.cli.load_config", return_value=MagicMock()),
+        patch("hivemind.cli.merge_cli_overrides", return_value=mock_config),
+        patch("hivemind.cli.ModelClient"),
+        patch("hivemind.cli.Advisor"),
+        patch("hivemind.cli.DecisionPolicy"),
+        patch("hivemind.cli.ExecutorLoop") as mock_loop_cls,
+    ):
+        result = runner.invoke(cli, ["chat"], input="h\nq\n")
+
+    assert "quit" in result.output
+    mock_loop_cls.return_value.run.assert_not_called()
+
+
+def test_chat_carries_state_across_turns():
+    mock_config, _ = _make_chat_mocks()
+    sentinel_state = MagicMock()
+    mock_result1 = MagicMock()
+    mock_result1.final_answer = "first answer"
+    mock_result1.usage_summary = {}
+    mock_result1.state = sentinel_state
+    mock_result2 = MagicMock()
+    mock_result2.final_answer = "second answer"
+    mock_result2.usage_summary = {}
+    mock_result2.state = MagicMock()
+
+    runner = CliRunner()
+    with (
+        patch("hivemind.cli.load_config", return_value=MagicMock()),
+        patch("hivemind.cli.merge_cli_overrides", return_value=mock_config),
+        patch("hivemind.cli.ModelClient"),
+        patch("hivemind.cli.Advisor"),
+        patch("hivemind.cli.DecisionPolicy"),
+        patch("hivemind.cli.ExecutorLoop") as mock_loop_cls,
+    ):
+        mock_loop_cls.return_value.run.side_effect = [mock_result1, mock_result2]
+        runner.invoke(cli, ["chat"], input="first\nsecond\nq\n")
+
+    calls = mock_loop_cls.return_value.run.call_args_list
+    assert len(calls) == 2
+    _, kwargs = calls[1]
+    assert kwargs["state"] is sentinel_state
+
+
+def test_chat_reset_clears_state():
+    mock_config, _ = _make_chat_mocks()
+    mock_result1 = MagicMock()
+    mock_result1.final_answer = "hello answer"
+    mock_result1.usage_summary = {}
+    mock_result1.state = MagicMock()
+    mock_result2 = MagicMock()
+    mock_result2.final_answer = "follow answer"
+    mock_result2.usage_summary = {}
+    mock_result2.state = MagicMock()
+
+    runner = CliRunner()
+    with (
+        patch("hivemind.cli.load_config", return_value=MagicMock()),
+        patch("hivemind.cli.merge_cli_overrides", return_value=mock_config),
+        patch("hivemind.cli.ModelClient"),
+        patch("hivemind.cli.Advisor"),
+        patch("hivemind.cli.DecisionPolicy"),
+        patch("hivemind.cli.ExecutorLoop") as mock_loop_cls,
+    ):
+        mock_loop_cls.return_value.run.side_effect = [mock_result1, mock_result2]
+        result = runner.invoke(cli, ["chat"], input="hello\nr\nfollow\nq\n")
+
+    assert "[session reset]" in result.output
+    calls = mock_loop_cls.return_value.run.call_args_list
+    assert len(calls) == 2
+    _, kwargs = calls[1]
+    assert kwargs["state"] is None
+
+
+def test_chat_search_flag_passes_through():
+    mock_config, _ = _make_chat_mocks()
+    runner = CliRunner()
+    with (
+        patch("hivemind.cli.load_config", return_value=MagicMock()),
+        patch(
+            "hivemind.cli.merge_cli_overrides", return_value=mock_config
+        ) as mock_merge,
+        patch("hivemind.cli.ModelClient"),
+        patch("hivemind.cli.Advisor"),
+        patch("hivemind.cli.DecisionPolicy"),
+        patch("hivemind.cli.ExecutorLoop"),
+    ):
+        runner.invoke(cli, ["chat", "--search"], input="q\n")
+
+    _, kwargs = mock_merge.call_args
+    assert kwargs["search_enabled"] is True
+
+
 def test_force_consult_flag_passes_through_to_merge_cli_overrides():
     """--force-consult should pass force_consult=True to merge_cli_overrides."""
     mock_config = MagicMock()

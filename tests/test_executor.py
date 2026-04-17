@@ -7,6 +7,7 @@ from hivemind.log import NullTraceLogger
 from hivemind.policy import DecisionPolicy
 from hivemind.schemas import (
     AdvisorResponse,
+    ExecutorState,
     HivemindConfig,
     ModelConfig,
     ModelResponse,
@@ -207,6 +208,25 @@ def test_executor_usage_tracked():
     # Tokens and costs should be positive
     assert summary["executor"]["prompt_tokens"] > 0
     assert summary["advisor"]["cost_usd"] > 0
+
+
+def test_run_accepts_existing_state_appends_user_message():
+    loop, _, _, _ = make_executor_loop(
+        executor_responses=["answer [DONE]"],
+        policy_config=PolicyConfig(max_advisor_calls=0),
+    )
+    state = ExecutorState(task="original task")
+    state.messages.append({"role": "user", "content": "original task"})
+    state.messages.append({"role": "assistant", "content": "original answer"})
+
+    result = loop.run("follow-up", state=state)
+
+    assert result.state is state
+    assert state.advisor_calls == 0
+    # original user + original assistant + new user + new assistant
+    assert len(state.messages) == 4
+    assert state.messages[2] == {"role": "user", "content": "follow-up"}
+    assert result.state.status == "completed"
 
 
 def test_executor_logs_tool_calls_in_trace():

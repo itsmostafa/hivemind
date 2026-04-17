@@ -152,6 +152,103 @@ def run(
     sys.exit(0 if result.state.status == "completed" else 1)
 
 
+@cli.command()
+@click.option(
+    "--executor", default=None, help="Executor model string (e.g. ollama/llama3)."
+)
+@click.option(
+    "--executor-api-base",
+    default=None,
+    help="API base URL for executor (e.g. http://localhost:1234/v1).",
+)
+@click.option("--advisor", "advisor_model", default=None, help="Advisor model string.")
+@click.option(
+    "--advisor-api-base",
+    default=None,
+    help="API base URL for advisor (e.g. http://localhost:1234/v1).",
+)
+@click.option("--trace", default=None, help="Path to write JSONL trace file.")
+@click.option(
+    "--search",
+    "search_enabled",
+    is_flag=True,
+    default=False,
+    help="Enable Tavily web search tool.",
+)
+def chat(
+    executor: str | None,
+    executor_api_base: str | None,
+    advisor_model: str | None,
+    advisor_api_base: str | None,
+    trace: str | None,
+    search_enabled: bool,
+) -> None:
+    """Start an interactive chat REPL."""
+    config = load_config()
+    config = merge_cli_overrides(
+        config,
+        executor=executor,
+        advisor=advisor_model,
+        executor_api_base=executor_api_base,
+        advisor_api_base=advisor_api_base,
+        search_enabled=search_enabled or None,
+    )
+
+    if trace:
+        config.logging.trace_file = trace
+
+    configure_logging(config.logging.level)
+
+    if config.logging.trace_file:
+        trace_logger = TraceLogger(_timestamped_trace_path(config.logging.trace_file))
+    else:
+        trace_logger = NullTraceLogger()
+
+    executor_client = ModelClient(config.executor, search=config.search)
+    advisor_client = ModelClient(config.advisor, search=config.search)
+    advisor = Advisor(advisor_client)
+    tracker = CostTracker()
+
+    state = None
+
+    with trace_logger:
+        _print_chat_banner(
+            config.executor.model, config.advisor.model, config.search.enabled
+        )
+        while True:
+            try:
+                user_input = click.prompt(
+                    ">>", prompt_suffix=" ", default="", show_default=False
+                )
+            except (EOFError, KeyboardInterrupt, click.exceptions.Abort):
+                break
+
+            cmd = user_input.strip().lower()
+            if not cmd:
+                continue
+            if cmd in ("q", "quit", "exit"):
+                break
+            if cmd in ("h", "help"):
+                _print_chat_help()
+                continue
+            if cmd in ("r", "reset"):
+                state = None
+                tracker = CostTracker()
+                trace_logger.log("chat_reset")
+                click.echo("[session reset]")
+                continue
+
+            policy = DecisionPolicy(config.policy)
+            loop = ExecutorLoop(
+                executor_client, advisor, policy, tracker, trace_logger, config
+            )
+            result = loop.run(user_input.strip(), state=state)
+            state = result.state
+            click.echo(result.final_answer)
+
+    _print_usage(tracker.summary())
+
+
 def _print_usage(usage: dict) -> None:
     for role, data in usage.items():
         click.echo(
@@ -159,6 +256,22 @@ def _print_usage(usage: dict) -> None:
             f"{data['prompt_tokens'] + data['completion_tokens']} tokens, "
             f"${data['cost_usd']:.4f}"
         )
+
+
+def _print_chat_banner(
+    executor_model: str, advisor_model: str, search_enabled: bool
+) -> None:
+    search = "On" if search_enabled else "Off"
+    click.echo("hivemind chat  (q=quit, r=reset, h=help)")
+    click.echo(
+        f"Executor Model: {executor_model}  Advisor Model: {advisor_model}  Web Search: {search}"
+    )
+
+
+def _print_chat_help() -> None:
+    click.echo("  q / quit / exit  — end session")
+    click.echo("  r / reset        — clear history and start fresh")
+    click.echo("  h / help         — show this message")
 
 
 @cli.command()
